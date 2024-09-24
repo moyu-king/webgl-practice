@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas {
+      width: 1200px;
+      height: 600px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    /** @type {HTMLCanvasElement} */
+    const canvas = document.querySelector('#canvas')
+
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+
+    const gl = canvas.getContext('webgl')
+
+    const vertexSource = `
+      precision mediump float;
+
+      attribute vec2 a_Position;
+      attribute vec2 a_Screen_Size;
+      attribute vec4 a_Color;
+
+      varying vec4 v_Color;
+
+      void main() {
+        vec2 position = (a_Position / a_Screen_Size) * 2.0 - 1.0;
+        position = position * vec2(1.0, -1.0);
+        gl_Position = vec4(position, 0.0, 1.0);
+        gl_PointSize = 10.0;
+        v_Color = a_Color;
+      }
+    `
+
+    const fragmentSource = `
+      precision mediump float;
+
+      varying vec4 v_Color;
+
+      void main() {
+        vec4 color = v_Color / vec4(255, 255, 255, 1);
+        gl_FragColor = color;
+      }
+    `
+
+    // 创建着色器
+    const createShader = (gl, type, source) => {
+      const shader = gl.createShader(type)
+
+      gl.shaderSource(shader, source)
+      gl.compileShader(shader)
+
+      return shader
+    }
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource)
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource)
+
+    const program = gl.createProgram()
+
+    gl.attachShader(program, vertexShader)
+    gl.attachShader(program, fragmentShader)
+    gl.linkProgram(program)
+    gl.useProgram(program)
+
+    // 获取需要传参的属性
+    const a_Position = gl.getAttribLocation(program, 'a_Position')
+    const a_Screen_Size = gl.getAttribLocation(program, 'a_Screen_Size')
+    const a_Color = gl.getAttribLocation(program, 'a_Color')
+
+    gl.vertexAttrib2f(a_Screen_Size, canvas.width, canvas.height)
+
+    // 创建缓冲区
+   const buffer = gl.createBuffer()
+   gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+
+  const points = []
+
+  canvas.addEventListener('click', event => {
+    const x = event.offsetX
+    const y = event.offsetY
+
+    points.push({ x, y, color: getRandomColor() })
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points.flatMap(p => [p.x, p.y, ...p.color])), gl.STATIC_DRAW)
+
+    points.forEach((point, index) => {
+      gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 24, 0)
+      gl.enableVertexAttribArray(a_Position);
+      gl.vertexAttribPointer(a_Color, 4, gl.FLOAT, false, 24, 8)
+      gl.enableVertexAttribArray(a_Color);
+      gl.drawArrays(gl.POINTS, index, 1)
+    })
+
+    const count = Math.floor(points.length / 3)
+
+    for (let i = 0; i < count; i++) {
+      gl.drawArrays(gl.TRIANGLES, i * 3, 3)
+    }
+  })
+
+  gl.clearColor(0.0, 0.0, 0.0, 1.0)
+  gl.clear(gl.COLOR_BUFFER_BIT)
+
+  function getRandomColor() {
+    const r = Math.round(Math.random() * 255)
+    const g = Math.round(Math.random() * 255)
+    const b = Math.round(Math.random() * 255)
+
+    return [r, g, b, 1.0]
+  }
+  </script>
+</body>
+</html>
