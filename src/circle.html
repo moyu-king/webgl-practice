@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘制圆形</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas {
+      width: 1200px;
+      height: 600px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    /** @type {HTMLCanvasElement} */
+    const canvas = document.querySelector('#canvas')
+
+    canvas.width = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+
+    const gl = canvas.getContext('webgl')
+
+    const vertexSource = `
+      precision mediump float;
+
+      attribute vec2 a_position;
+      attribute vec2 a_screen_size;
+
+      void main() {
+        vec2 position = (a_position / a_screen_size) * 2.0 - 1.0;
+        position = position * vec2(1.0, -1.0);
+        gl_Position = vec4(position, 0.0, 1.0);
+        gl_PointSize = 10.0;
+      }
+    `
+    const fragmentSource = `
+      precision mediump float;
+
+      uniform vec4 u_color;
+
+      void main() {
+        vec4 color = u_color / vec4(255, 255, 255, 1);
+        gl_FragColor = color;
+      }
+    `
+
+    // 创建着色器
+    const createShader = (gl, type, source) => {
+      const shader = gl.createShader(type)
+
+      gl.shaderSource(shader, source)
+      gl.compileShader(shader)
+
+      return shader
+    }
+
+    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource)
+    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource)
+
+    const program = gl.createProgram()
+
+    gl.attachShader(program, vertexShader)
+    gl.attachShader(program, fragmentShader)
+    gl.linkProgram(program,)
+    gl.useProgram(program)
+
+    const a_position = gl.getAttribLocation(program, 'a_position')
+    const a_screen_size = gl.getAttribLocation(program, 'a_screen_size')
+    const u_color = gl.getUniformLocation(program, 'u_color')
+
+    gl.vertexAttrib2f(a_screen_size, canvas.width, canvas.height)
+    gl.uniform4f(u_color, 255, 0, 0, 1)
+
+    const position = createCircleVertex(200, 200, 100, 1000) // 三角形越多越圆
+    const buffer = gl.createBuffer()
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    gl.bindBuffer(gl.ARRAY_BUFFER , buffer)
+    gl.bufferData(gl.ARRAY_BUFFER , new Float32Array(position), gl.STATIC_DRAW)
+    gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 8, 0)
+    gl.enableVertexAttribArray(a_position)
+
+    // 索引缓冲区
+    const indexBuffer = gl.createBuffer();
+    const indexes = []
+
+    for (let i = 0; i <= position.length / 2; i++) {
+      if (i === position.length / 2) { // 最后一个点为闭合点
+        indexes.push(1)
+      } else {
+        indexes.push(i)
+      }
+
+    }
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexes), gl.STATIC_DRAW);
+
+    gl.drawElements(gl.TRIANGLE_FAN, indexes.length, gl.UNSIGNED_SHORT, 0)
+
+
+    function createCircleVertex(x, y, r, n) {
+      const points = []
+
+      for (let i = 0; i < n; i++) {
+        const radian = i * Math.PI * 2 / n
+
+        points.push(Math.cos(radian) * r + x, Math.sin(radian) * r + y)
+      }
+
+      points.unshift(x, y)// 圆点，从圆点开始画
+
+      return points
+    }
+  </script>
+</body>
+</html>
